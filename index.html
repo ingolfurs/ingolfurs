@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Hrísey</title>
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="shortcut icon" type="image/x-icon" href="docs/images/favicon.ico"/>
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+		  integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+		  crossorigin=""/>
+	<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+			integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+			crossorigin=""></script>
+	<style>
+		html, body {
+			height: 100%;
+			margin: 0;
+		}
+
+		#map {
+			width: 100vw;
+			height: 100vh;
+		}
+
+		#area {
+			position: absolute;
+			left:0;
+			bottom:0;
+			z-index: 999;
+			display:grid;
+		}
+
+		textarea {
+			width: 550px;
+			height: 120px;
+		}
+
+	</style>
+</head>
+<body>
+
+<div id='map'></div>
+<div id="area">
+	<textarea id="info"></textarea>
+	<button class="clearAll">Hreinsa allt</button>
+</div>
+<script>
+	function addMarker(lat, lng, name, id) {
+		let text = '<p>' + name + '</p>' + '<p><button class="remove" data-id="' + id + '">Eyða</button></p>'
+		L.marker([lat, lng]).addTo(map).bindPopup(text);
+		addToTextarea(lat + "\t" + lng + "\t" + name + "\n");
+	}
+	function addToTextarea(value) {
+		document.getElementById('info').value += value;
+	}
+	function clearTextarea() {
+		document.getElementById('info').value = '';
+	}
+	let map = L.map('map', {
+		maxZoom: 17
+	}).setView([65.979685, -18.371308], 16);
+	/*
+	L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+		attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+	}).addTo(map);
+	 */
+	L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+		attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+	}).addTo(map);
+	map.zoomControl.setPosition('bottomright');
+	let data = localStorage.getItem('data');
+	if (data) {
+		data = JSON.parse(data);
+		data.forEach(function(item, index) {
+			addMarker(item.lat, item.lng, item.name, index);
+		});
+	}
+	else {
+		data = [];
+	}
+	map.on('click', function(e){
+		let coord = e.latlng.toString().split(',');
+		let lat = coord[0].split('(');
+		let lng = coord[1].split(')');
+		let name = prompt('Titill');
+		if (name) {
+			let obj = {
+				'lat': lat[1],
+				'lng': lng[0],
+				'name': name,
+			};
+			data.push(obj);
+			addMarker(lat[1], lng[0], name, data.length - 1);
+			localStorage.setItem('data', JSON.stringify(data));
+		}
+	});
+
+	document.addEventListener('click', function(e){
+		if (e.target && e.target.classList.contains('remove')){
+			const id = e.target.getAttribute('data-id');
+			data.forEach(function(item, index) {
+				if (parseInt(id) === index) {
+					data.splice(index, 1);
+					clearTextarea();
+					map.eachLayer(function(layer) {
+						if (layer._icon) {
+							map.removeLayer(layer)
+						}
+					});
+					return false;
+				}
+			});
+			localStorage.setItem('data', JSON.stringify(data));
+			data.forEach(function(item, index) {
+				addMarker(item.lat, item.lng, item.name, index);
+			});
+		}
+		else if (e.target && e.target.classList.contains('clearAll')){
+			if (confirm('Viltu örugglega hreinsa allt?')) {
+				map.eachLayer(function(layer) {
+					if (layer._icon) {
+						map.removeLayer(layer)
+					}
+				});
+				clearTextarea();
+				localStorage.removeItem('data');
+			}
+		}
+	});
+</script>
+</body>
+</html>
+
